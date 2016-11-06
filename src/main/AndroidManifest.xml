@@ -22,18 +22,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.amaze.filemanager"
-    android:versionCode="27"
-    android:versionName="3.0.0">
+    android:versionCode="46"
+    android:versionName="3.1.2 Beta 2">
+
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_SUPERUSER"/>
     <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
-    <uses-permission android:name="android.permission.USE_CREDENTIALS" />
+
     <uses-sdk 
         android:minSdkVersion="14" 
         android:targetSdkVersion="21" />
-
+        
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
     <application
         android:icon="@mipmap/ic_launcher"
         tools:replace="android:label"
@@ -41,6 +46,7 @@
 
         <activity
             android:label="Amaze"
+            android:launchMode="singleInstance"
             android:name=".activities.MainActivity"
             android:theme="@style/appCompatLight">
             <intent-filter >
@@ -53,11 +59,11 @@
                 <data android:mimeType="*/*" />
                 <category android:name="android.intent.category.OPENABLE" />
                 <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter><!--
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.RINGTONE_PICKER" />
                 <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>-->
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <data android:mimeType="application/zip" />
@@ -70,6 +76,10 @@
             android:label="@string/setting"
             android:name=".activities.Preferences" 
 			android:theme="@style/appCompatLight">
+	    <intent-filter>
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
            
         </activity>
 		<activity
@@ -98,6 +108,11 @@
 
         </activity>
 
+        <activity android:name=".activities.AboutActivity"
+            android:theme="@style/aboutLight"
+            android:label="About"
+            />
+
         <service
 			android:name = ".services.ExtractService"
 			android:label = "Extracting"
@@ -111,8 +126,31 @@
 			<service
 			android:name = ".services.CopyService"
 			android:label = "Copying"
+                android:process=":amaze"
             >
 		</service>
+        <service
+            android:name="com.amaze.filemanager.services.ftpservice.FTPService"
+            android:enabled="true"
+            android:exported="true">
+
+        </service>
+        <receiver
+            android:name="com.amaze.filemanager.services.ftpservice.FTPReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.amaze.filemanager.services.ftpservice.FTPReceiver.ACTION_START_FTPSERVER" />
+                <action android:name="com.amaze.filemanager.services.ftpservice.FTPReceiver.ACTION_STOP_FTPSERVER" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.amaze.filemanager.ui.notifications.FTPNotification"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.amaze.filemanager.services.ftpservice.FTPReceiver.FTPSERVER_STARTED" />
+                <action android:name="com.amaze.filemanager.services.ftpservice.FTPReceiver.FTPSERVER_STOPPED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

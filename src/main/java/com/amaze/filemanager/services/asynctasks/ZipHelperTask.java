@@ -1,6 +1,8 @@
 package com.amaze.filemanager.services.asynctasks;
 
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.widget.Toast;
 
 import com.amaze.filemanager.R;
 import com.amaze.filemanager.fragments.ZipViewer;
@@ -13,32 +15,54 @@ import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 /**
  * Created by Vishal on 11/23/2014.
  */
-public class ZipHelperTask extends AsyncTask<File, Void, ArrayList<ZipObj>> {
+public class ZipHelperTask extends AsyncTask<String, Void, ArrayList<ZipObj>> {
 
     ZipViewer zipViewer;
     String dir;
 
+    /**
+     * AsyncTask to load ZIP file items.
+     * @param zipViewer the zipViewer fragment instance
+     * @param dir
+     */
     public ZipHelperTask(ZipViewer zipViewer, String dir) {
-
         this.zipViewer = zipViewer;
         this.dir = dir;
+        zipViewer.swipeRefreshLayout.setRefreshing(true);
     }
 
     @Override
-    protected ArrayList<ZipObj> doInBackground(File... params) {
-        ArrayList<ZipObj> elements = new ArrayList<ZipObj>();
+    protected void onPreExecute() {
+        super.onPreExecute();
+        zipViewer.swipeRefreshLayout.setRefreshing(true);
+    }
 
+    @Override
+    protected ArrayList<ZipObj> doInBackground(String... params) {
+        ArrayList<ZipObj> elements = new ArrayList<ZipObj>();
         try {
-            ZipFile zipfile = new ZipFile(params[0]);
             int i = 0;
             if (zipViewer.wholelist.size() == 0) {
-                for (Enumeration e = zipfile.entries(); e.hasMoreElements(); ) {
-                    ZipEntry entry = (ZipEntry) e.nextElement();
-                    zipViewer.wholelist.add(new ZipObj(entry, entry.getTime(), entry.getSize(), entry.isDirectory()));
+                Uri uri = Uri.parse(params[0]);
+                if (new File(uri.getPath()).canRead()) {
+                    ZipFile zipfile = new ZipFile(uri.getPath());
+                    for (Enumeration e = zipfile.entries(); e.hasMoreElements(); ) {
+                        ZipEntry entry = (ZipEntry) e.nextElement();
+                        zipViewer.wholelist.add(new ZipObj(entry, entry.getTime(), entry.getSize(), entry.isDirectory()));
+                    }
+                } else {
+                    ZipEntry entry1;
+                    if (zipViewer.wholelist.size() == 0) {
+                        ZipInputStream zipfile1 = new ZipInputStream(zipViewer.getActivity().getContentResolver().openInputStream(uri));
+                        while ((entry1 = zipfile1.getNextEntry()) != null) {
+                            zipViewer.wholelist.add(new ZipObj(entry1, entry1.getTime(), entry1.getSize(), entry1.isDirectory()));
+                        }
+                    }
                 }
             }
             ArrayList<String> strings = new ArrayList<String>();
@@ -109,6 +133,7 @@ public class ZipHelperTask extends AsyncTask<File, Void, ArrayList<ZipObj>> {
     @Override
     protected void onPostExecute(ArrayList<ZipObj> zipEntries) {
         super.onPostExecute(zipEntries);
+        zipViewer.swipeRefreshLayout.setRefreshing(false);
         zipViewer.createviews(zipEntries, dir);
     }
 

@@ -37,13 +37,12 @@ Icon
 .Trashes
 
 # Android Studio
-.idea
+.idea/*
 #.idea/workspace.xml - remove # and delete .idea if it better suit your needs.
-.gradle
+.gradle/
 build/
 .settings
 bin/
-build
 gen/
 gradle/
 .classpath
@@ -53,3 +52,5 @@ gradlew.bat
 .project
 AmazeFileManager.iml
 libs/libs.iml
+.idea/
+gradle.properties

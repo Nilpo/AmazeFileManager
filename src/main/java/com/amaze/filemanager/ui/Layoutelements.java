@@ -25,6 +25,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.amaze.filemanager.filesystem.BaseFile;
 import com.amaze.filemanager.utils.Futils;
 
 public class Layoutelements implements Parcelable {
@@ -71,13 +72,13 @@ public class Layoutelements implements Parcelable {
         p1.writeInt(isDirectory?1:0);
         p1.writeLong(date);
         p1.writeInt(header ? 1 : 0);
-        p1.writeParcelable(((BitmapDrawable) imageId).getBitmap(), p2);
+        p1.writeParcelable(imageId.getBitmap(), p2);
         p1.writeString(date1);
         p1.writeLong(longSize);
         // TODO: Implement this method
     }
 
-    private Drawable imageId;
+    private BitmapDrawable imageId;
     private String title;
     private String desc;
     private String permissions;
@@ -87,8 +88,9 @@ public class Layoutelements implements Parcelable {
     private long date = 0,longSize=0;
     private String date1 = "";
     private boolean header;
-
-    public Layoutelements(Drawable imageId, String title, String desc, String permissions, String symlink, String size,long longSize,  boolean header, String date,boolean isDirectory) {
+    //same as hfile.modes but different than openmode in Main.java
+    private int mode=0;
+    public Layoutelements(BitmapDrawable imageId, String title, String desc, String permissions, String symlink, String size,long longSize,  boolean header, String date,boolean isDirectory) {
         this.imageId = imageId;
         this.title = title;
         this.desc = desc;
@@ -100,7 +102,7 @@ public class Layoutelements implements Parcelable {
         this.isDirectory = isDirectory;
         if (!date.trim().equals("")) {
             this.date = Long.parseLong(date);
-            this.date1 = new Futils().getdate(this.date, "MMM dd, yyyy", "15");
+            this.date1 = Futils.getdate(this.date, "MMM dd, yyyy", "16");
         }
     }
 
@@ -120,7 +122,7 @@ public class Layoutelements implements Parcelable {
         return imageId;
     }
 
-    public void setImageId(Drawable imageId){this.imageId=imageId;}
+    public void setImageId(BitmapDrawable imageId){this.imageId=imageId;}
     public String getDesc() {
         return desc.toString();
     }
@@ -130,8 +132,22 @@ public class Layoutelements implements Parcelable {
         return title.toString();
     }
 
+    public int getMode() {
+        return mode;
+    }
+
+    public void setMode(int mode) {
+        this.mode = mode;
+    }
+
     public boolean isDirectory() {
     return isDirectory;}
+    public BaseFile generateBaseFile(){
+        BaseFile baseFile=new BaseFile(getDesc(),getPermissions(),getDate1(),longSize,isDirectory());
+        baseFile.setMode(mode);
+        baseFile.setName(title);
+        return baseFile;
+    }
 
     public String getSize() {
         return size;

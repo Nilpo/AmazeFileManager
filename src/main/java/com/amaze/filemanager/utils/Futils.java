@@ -20,6 +20,9 @@
 package com.amaze.filemanager.utils;
 
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
@@ -29,9 +32,10 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
-import android.content.res.Resources;
+import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
@@ -39,33 +43,34 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.preference.PreferenceManager;
+import android.provider.BaseColumns;
+import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.graphics.drawable.DrawableCompat;
-import android.support.v7.app.AppCompatDialog;
 import android.support.v7.widget.AppCompatButton;
-import android.support.v7.widget.AppCompatEditText;
+import android.text.Html;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.afollestad.materialdialogs.DialogAction;
-import com.afollestad.materialdialogs.GravityEnum;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.afollestad.materialdialogs.Theme;
 import com.amaze.filemanager.R;
+import com.amaze.filemanager.activities.BaseActivity;
 import com.amaze.filemanager.activities.DbViewer;
 import com.amaze.filemanager.activities.MainActivity;
 import com.amaze.filemanager.adapters.HiddenAdapter;
+import com.amaze.filemanager.filesystem.BaseFile;
+import com.amaze.filemanager.filesystem.HFile;
 import com.amaze.filemanager.fragments.AppsList;
 import com.amaze.filemanager.fragments.Main;
 import com.amaze.filemanager.services.asynctasks.GenerateMD5Task;
-import com.amaze.filemanager.ui.CircleAnimation;
 import com.amaze.filemanager.ui.Layoutelements;
 import com.amaze.filemanager.ui.icons.Icons;
 import com.amaze.filemanager.ui.icons.MimeTypes;
-import com.amaze.filemanager.ui.views.SizeDrawable;
 import com.amaze.filemanager.utils.share.ShareTask;
 import com.stericson.RootTools.RootTools;
 import com.stericson.RootTools.execution.Command;
@@ -91,6 +96,80 @@ public  final int READ = 4;
 
     public Futils() {
     }
+    //methods for fastscroller
+    public static float getViewRawY(View view) {
+        int[] location = new int[2];
+        location[0] = 0;
+        location[1] = (int) view.getY();
+        ((View)view.getParent()).getLocationInWindow(location);
+        return location[1];
+    }
+
+    public static float getValueInRange(float min, float max, float value) {
+        float minimum = Math.max(min, value);
+        return Math.min(minimum, max);
+    }
+
+    public MaterialDialog showBasicDialog(Context c,String fabskin,int theme1, String[] texts) {
+        MaterialDialog.Builder a = new MaterialDialog.Builder(c);
+        a.content(texts[0]);
+        a.widgetColor(Color.parseColor(fabskin));
+        if(theme1==1)
+            a.theme(Theme.DARK);
+        a.title(texts[1]);
+        a.positiveText(texts[2]);
+        a.positiveColor(Color.parseColor(fabskin));
+        a.negativeText(texts[3]);
+        a.negativeColor(Color.parseColor(fabskin));
+        if(texts[4]!=(null)){
+            a.neutralText(texts[4]);
+            a.neutralColor(Color.parseColor(fabskin));
+        }
+        MaterialDialog dialog=a.build();
+        return dialog;
+    }
+    public static MaterialDialog showBasicDialog(final Activity m,String fabskin,int theme1, String[] texts) {
+        MaterialDialog.Builder a = new MaterialDialog.Builder(m);
+        a.content(texts[0]);
+        a.widgetColor(Color.parseColor(fabskin));
+        if(theme1==1)
+            a.theme(Theme.DARK);
+        a.title(texts[1]);
+        a.positiveText(texts[2]);
+        a.positiveColor(Color.parseColor(fabskin));
+        a.negativeText(texts[3]);
+        a.negativeColor(Color.parseColor(fabskin));
+        if(texts[4]!=(null)){
+            a.neutralText(texts[4]);
+            a.neutralColor(Color.parseColor(fabskin));
+        }
+        MaterialDialog dialog=a.build();
+        return dialog;
+    }
+    public MaterialDialog showNameDialog(final MainActivity m, String[] texts) {
+        MaterialDialog.Builder a = new MaterialDialog.Builder(m);
+        a.input(texts[0], texts[1], false, new
+                MaterialDialog.InputCallback() {
+                    @Override
+                    public void onInput(MaterialDialog materialDialog, CharSequence charSequence) {
+
+                    }
+                });
+            a.widgetColor(Color.parseColor(BaseActivity.accentSkin));
+            if(m.theme1==1)
+                a.theme(Theme.DARK);
+            a.title(texts[2]);
+            a.positiveText(texts[3]);
+            a.positiveColor(Color.parseColor(BaseActivity.accentSkin));
+            a.neutralText(texts[4]);
+            if(texts[5]!=(null)){
+                a.negativeText(texts[5]);
+                a.negativeColor(Color.parseColor(BaseActivity.accentSkin));
+            }
+            MaterialDialog dialog=a.build();
+            return dialog;
+        }
+
 
     public static long folderSize(File directory) {
         long length = 0;
@@ -122,21 +201,8 @@ public  final int READ = 4;
         }
         return length;
     }
-    private  ColorStateList createEditTextColorStateList(int color) {
-        int[][] states = new int[3][];
-        int[] colors = new int[3];
-        int i = 0;
-        states[i] = new int[]{-android.R.attr.state_enabled};
-        colors[i] = Color.parseColor("#f6f6f6");
-        i++;
-        states[i] = new int[]{-android.R.attr.state_pressed, -android.R.attr.state_focused};
-        colors[i] = Color.parseColor("#666666");
-        i++;
-        states[i] = new int[]{};
-        colors[i] =color ;
-        return new ColorStateList(states, colors);
-    }
-    public  void setTint(CheckBox box, int color) {
+
+    public static void setTint(CheckBox box, int color) {
         if(Build.VERSION.SDK_INT>=21)return;
         ColorStateList sl = new ColorStateList(new int[][]{
                 new int[]{-android.R.attr.state_checked},
@@ -153,49 +219,14 @@ public  final int READ = 4;
             box.setButtonDrawable(drawable);
         }
     }
-    public void setTint(EditText editText, int color) {
-        if(Build.VERSION.SDK_INT>=21)return;
-        ColorStateList editTextColorStateList = createEditTextColorStateList(color);
-        if (editText instanceof AppCompatEditText) {
-            ((AppCompatEditText) editText).setSupportBackgroundTintList(editTextColorStateList);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            editText.setBackgroundTintList(editTextColorStateList);
-        }
-    }
 
-    public int checkFolder(final String f,Context context) {
-        if(f==null)return 0;
-        if(f.startsWith("smb://"))return 1;
-        File folder=new File(f);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP && FileUtil.isOnExtSdCard(folder, context)) {
-            if (!folder.exists() || !folder.isDirectory()) {
-                return 0;
-            }
-
-            // On Android 5, trigger storage access framework.
-            if (FileUtil.isWritableNormalOrSaf(folder, context)) {
-                return 1;
-
-            }
-        } else if (Build.VERSION.SDK_INT == 19 && FileUtil.isOnExtSdCard(folder, context)) {
-            // Assume that Kitkat workaround works
-            return 1;
-        } else if (FileUtil.isWritable(new File(folder, "DummyFile"))) {
-            return 1;
-        } else {
-            return 0;
-        }
-        return 0;
-    }
-
-    public void scanFile(String path, Context c) {
+    public static void scanFile(String path, Context c) {
         System.out.println(path + " " + Build.VERSION.SDK_INT);
         if (Build.VERSION.SDK_INT >= 19) {
             MediaScannerConnection.scanFile(c, new String[]{path}, null, new MediaScannerConnection.OnScanCompletedListener() {
 
                 @Override
                 public void onScanCompleted(String path, Uri uri) {
-                    System.out.println("SCAN COMPLETED: " + path);
 
                 }
             });
@@ -206,10 +237,91 @@ public  final int READ = 4;
         }
     }
 
-    public String getString(Context c, int a) {
-        return c.getResources().getString(a);
+    public void crossfade(View buttons,final View pathbar) {
+
+        // Set the content view to 0% opacity but visible, so that it is visible
+        // (but fully transparent) during the animation.
+        buttons.setAlpha(0f);
+        buttons.setVisibility(View.VISIBLE);
+
+
+        // Animate the content view to 100% opacity, and clear any animation
+        // listener set on the view.
+        buttons.animate()
+                .alpha(1f)
+                .setDuration(100)
+                .setListener(null);
+        pathbar.animate()
+                .alpha(0f)
+                .setDuration(100)
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        pathbar.setVisibility(View.GONE);
+                    }
+                });
+        // Animate the loading view to 0% opacity. After the animation ends,
+        // set its visibility to GONE as an optimization step (it won't
+        // participate in layout passes, etc.)
+
+    }
+    public void revealShow(final View view, boolean reveal) {
+
+        if (reveal) {
+            ObjectAnimator animator = ObjectAnimator.ofFloat(view, View.ALPHA, 0f, 1f);
+            animator.setDuration(300); //ms
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationStart(Animator animation) {
+                    view.setVisibility(View.VISIBLE);
+                }
+            });
+            animator.start();
+        } else {
+
+            ObjectAnimator animator = ObjectAnimator.ofFloat(view, View.ALPHA, 1f, 0f);
+            animator.setDuration(300); //ms
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    view.setVisibility(View.GONE);
+                }
+            });
+            animator.start();
+
+        }
+
     }
 
+
+    public void crossfadeInverse(final View buttons,final View pathbar) {
+
+
+        // Set the content view to 0% opacity but visible, so that it is visible
+        // (but fully transparent) during the animation.
+
+        pathbar.setAlpha(0f);
+        pathbar.setVisibility(View.VISIBLE);
+
+        // Animate the content view to 100% opacity, and clear any animation
+        // listener set on the view.
+        pathbar.animate()
+                .alpha(1f)
+                .setDuration(500)
+                .setListener(null);
+        buttons.animate()
+                .alpha(0f)
+                .setDuration(500)
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationEnd(Animator animation) {
+                        buttons.setVisibility(View.GONE);
+                    }
+                });
+        // Animate the loading view to 0% opacity. After the animation ends,
+        // set its visibility to GONE as an optimization step (it won't
+        // participate in layout passes, etc.)
+    }
 
     public void shareFiles(ArrayList<File> a, Activity c,int theme,int fab_skin) {
         ArrayList<Uri> uris = new ArrayList<Uri>();
@@ -235,7 +347,7 @@ public  final int READ = 4;
             e.printStackTrace();
         }
     }
-    public String readableFileSize(long size) {
+    public static String readableFileSize(long size) {
         if (size <= 0)
             return "0 B";
         final String[] units = new String[]{"B", "KB", "MB", "GB", "TB"};
@@ -261,7 +373,10 @@ public  final int READ = 4;
 
         String type = MimeTypes.getMimeType(f);
         if(type!=null && type.trim().length()!=0 && !type.equals("*/*"))
-        {intent.setDataAndType(Uri.fromFile(f), type);
+        {
+            Uri uri=fileToContentUri(c, f);
+            if(uri==null)uri=Uri.fromFile(f);
+            intent.setDataAndType(uri, type);
         Intent startintent;
         if (forcechooser) startintent=Intent.createChooser(intent, c.getResources().getString(R.string.openwith));
         else startintent=intent;
@@ -275,34 +390,123 @@ public  final int READ = 4;
 
     }
 
+    private static final String INTERNAL_VOLUME = "internal";
+    public static final String EXTERNAL_VOLUME = "external";
+
+    private static final String EMULATED_STORAGE_SOURCE = System.getenv("EMULATED_STORAGE_SOURCE");
+    private static final String EMULATED_STORAGE_TARGET = System.getenv("EMULATED_STORAGE_TARGET");
+    private static final String EXTERNAL_STORAGE = System.getenv("EXTERNAL_STORAGE");
+    public static String normalizeMediaPath(String path) {
+        // Retrieve all the paths and check that we have this environment vars
+        if (TextUtils.isEmpty(EMULATED_STORAGE_SOURCE) ||
+                TextUtils.isEmpty(EMULATED_STORAGE_TARGET) ||
+                TextUtils.isEmpty(EXTERNAL_STORAGE)) {
+            return path;
+        }
+
+        // We need to convert EMULATED_STORAGE_SOURCE -> EMULATED_STORAGE_TARGET
+        if (path.startsWith(EMULATED_STORAGE_SOURCE)) {
+            path = path.replace(EMULATED_STORAGE_SOURCE, EMULATED_STORAGE_TARGET);
+        }
+        return path;
+    }
+    public static Uri fileToContentUri(Context context, File file) {
+        // Normalize the path to ensure media search
+        final String normalizedPath = normalizeMediaPath(file.getAbsolutePath());
+
+        // Check in external and internal storages
+        Uri uri = fileToContentUri(context, normalizedPath, EXTERNAL_VOLUME);
+        if (uri != null) {
+            return uri;
+        }
+        uri = fileToContentUri(context, normalizedPath, INTERNAL_VOLUME);
+        if (uri != null) {
+            return uri;
+        }
+        return null;
+    }
+
+    private static Uri fileToContentUri(Context context, String path, String volume) {
+        String[] projection = null;
+        final String where = MediaStore.MediaColumns.DATA + " = ?";
+        Uri baseUri = MediaStore.Files.getContentUri(volume);
+        boolean isMimeTypeImage = false, isMimeTypeVideo = false, isMimeTypeAudio = false;
+        isMimeTypeImage = Icons.isPicture( path);
+        if (!isMimeTypeImage) {
+            isMimeTypeVideo = Icons.isVideo(path);
+            if (!isMimeTypeVideo) {
+                isMimeTypeAudio = Icons.isVideo(path);
+            }
+        }
+        if (isMimeTypeImage || isMimeTypeVideo || isMimeTypeAudio) {
+            projection = new String[]{BaseColumns._ID};
+            if (isMimeTypeImage) {
+                baseUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+            } else if (isMimeTypeVideo) {
+                baseUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+            } else if (isMimeTypeAudio) {
+                baseUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+            }
+        } else {
+            projection = new String[]{BaseColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE};
+        }
+        ContentResolver cr = context.getContentResolver();
+        Cursor c = cr.query(baseUri, projection, where, new String[]{path}, null);
+        try {
+            if (c != null && c.moveToNext()) {
+                boolean isValid = false;
+                if (isMimeTypeImage || isMimeTypeVideo || isMimeTypeAudio) {
+                    isValid = true;
+                } else {
+                    int type = c.getInt(c.getColumnIndexOrThrow(
+                            MediaStore.Files.FileColumns.MEDIA_TYPE));
+                    isValid = type != 0;
+                }
+
+                if (isValid) {
+                    // Do not force to use content uri for no media files
+                    long id = c.getLong(c.getColumnIndexOrThrow(BaseColumns._ID));
+                    return Uri.withAppendedPath(baseUri, String.valueOf(id));
+                }
+            }
+        } finally {
+            if (c != null) {
+                c.close();
+            }
+        }
+        return null;
+    }
 public void openWith(final File f,final Context c) {
         MaterialDialog.Builder a=new MaterialDialog.Builder(c);
-        a.title(getString(c, R.string.openas));
-        String[] items=new String[]{getString(c,R.string.text),getString(c,R.string.image),getString(c,R.string.video),getString(c,R.string.audio),getString(c,R.string.database),getString(c,R.string.other)};
+        a.title(c.getResources().getString(R.string.openas));
+        String[] items=new String[]{c.getResources().getString(R.string.text),c.getResources().getString(R.string.image),c.getResources().getString(R.string.video),c.getResources().getString(R.string.audio),c.getResources().getString(R.string.database),c.getResources().getString(R.string.other)};
+
         a.items(items).itemsCallback(new MaterialDialog.ListCallback() {
             @Override
             public void onSelection(MaterialDialog materialDialog, View view, int i, CharSequence charSequence) {
+                Uri uri = fileToContentUri(c, f);
+                if (uri == null) uri = Uri.fromFile(f);
                 Intent intent = new Intent();
                 intent.setAction(android.content.Intent.ACTION_VIEW);
                 switch (i) {
                     case 0:
-                        intent.setDataAndType(Uri.fromFile(f), "text/*");
+                        intent.setDataAndType(uri, "text/*");
                         break;
                     case 1:
-                        intent.setDataAndType(Uri.fromFile(f), "image/*");
+                        intent.setDataAndType(uri, "image/*");
                         break;
                     case 2:
-                        intent.setDataAndType(Uri.fromFile(f), "video/*");
+                        intent.setDataAndType(uri, "video/*");
                         break;
                     case 3:
-                        intent.setDataAndType(Uri.fromFile(f), "audio/*");
+                        intent.setDataAndType(uri, "audio/*");
                         break;
                     case 4:
                         intent = new Intent(c, DbViewer.class);
                         intent.putExtra("path", f.getPath());
                         break;
                     case 5:
-                        intent.setDataAndType(Uri.fromFile(f), "*/*");
+                        intent.setDataAndType(uri, "*/*");
                         break;
                 }
                 try {
@@ -322,35 +526,26 @@ public void openWith(final File f,final Context c) {
 
     public void deleteFiles(ArrayList<Layoutelements> a, final Main b, List<Integer> pos) {
         final MaterialDialog.Builder c = new MaterialDialog.Builder(b.getActivity());
-        c.title(getString(b.getActivity(), R.string.confirm));
-        final ContentResolver contentResolver=b.getActivity().getContentResolver();
+        c.title(b.getResources().getString(R.string.confirm));
         String names = "";
-        final ArrayList<String> todelete = new ArrayList<>();
+        final ArrayList<BaseFile> todelete = new ArrayList<>();
         for (int i = 0; i < pos.size(); i++) {
-            String path = a.get(pos.get(i)).getDesc();
-            todelete.add((path));
-            if(path.startsWith("smb://"))
-                try {
-                    names = names + "\n" + (i + 1) + ". " + new SmbFile(path).getName();
-                } catch (MalformedURLException e) {
-
-                }
-            else
-            names = names + "\n" + (i + 1) + ". " + new File(path).getName();
+            todelete.add(a.get(pos.get(i)).generateBaseFile());
+            names = names + "\n" + (i + 1) + ". " + a.get(pos.get(i)).getTitle();
         }
-        c.content(getString(b.getActivity(), R.string.questiondelete) + names);
+        c.content(b.getResources().getString(R.string.questiondelete) + names);
 
         if(b.theme1==1)
             c.theme(Theme.DARK);
-        c.negativeText(getString(b.getActivity(), R.string.no));
-        c.positiveText(getString(b.getActivity(), R.string.yes));
+        c.negativeText(b.getResources().getString(R.string.no));
+        c.positiveText(b.getResources().getString(R.string.yes));
         c.positiveColor(Color.parseColor(b.fabSkin));
         c.negativeColor(Color.parseColor(b.fabSkin));
         c.callback(new MaterialDialog.ButtonCallback() {
             @Override
             public void onPositive(MaterialDialog materialDialog) {
-                Toast.makeText(b.getActivity(), getString(b.getActivity(), R.string.deleting), Toast.LENGTH_SHORT).show();
-                b.MAIN_ACTIVITY.deleteFiles(todelete);
+                Toast.makeText(b.getActivity(), b.getResources().getString(R.string.deleting), Toast.LENGTH_SHORT).show();
+                b.MAIN_ACTIVITY.mainActivityHelper.deleteFiles(todelete);
             }
 
             @Override
@@ -382,7 +577,7 @@ public void openWith(final File f,final Context c) {
         return (sdf.format(f)).toString();
     }
 
-    public String getdate(long f,String form,String year) {
+    public static String getdate(long f,String form,String year) {
 
         SimpleDateFormat sdf = new SimpleDateFormat(form);
         String date=(sdf.format(f)).toString();
@@ -391,7 +586,7 @@ public void openWith(final File f,final Context c) {
         return date;
     }
 
-    public int calculateInSampleSize(BitmapFactory.Options options,
+    public static int calculateInSampleSize(BitmapFactory.Options options,
                                      int reqWidth, int reqHeight) {
         // Raw height and width of image
         final int height = options.outHeight;
@@ -415,24 +610,16 @@ public void openWith(final File f,final Context c) {
         return inSampleSize;
     }
 
-    public void showProps(final String f, final String perm, final Main c,boolean root) {
-        final HFile hFile=new HFile(f);
-        long last=0;
-        try {
-            last=hFile.lastModified();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (SmbException e) {
-            e.printStackTrace();
-        }
+    public void showProps(final BaseFile hFile, final String perm, final Main c,boolean root) {
+        long last=hFile.getDate();
         String date = getdate(last);
-        String items = getString(c.getActivity(),R.string.calculating), size = getString(c.getActivity(),R.string.calculating), name, parent;
+        String items = c.getResources().getString(R.string.calculating), size = c.getResources().getString(R.string.calculating), name, parent;
         name = hFile.getName();
-        parent = hFile.getParent();
+        parent = hFile.getReadablePath(hFile.getParent());
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(c.getActivity());
-        String fabskin = PreferenceUtils.getFabColor(sp.getInt("fab_skin_color_position", 1));
+        String fabskin = PreferenceUtils.getAccentString(sp);
         MaterialDialog.Builder a = new MaterialDialog.Builder(c.getActivity());
-        a.title(getString(c.getActivity(), R.string.properties));
+        a.title(c.getResources().getString( R.string.properties));
         if(c.theme1==1)
             a.theme(Theme.DARK);
         View v=c.getActivity().getLayoutInflater().inflate(R.layout.properties_dialog,null);
@@ -459,7 +646,7 @@ public void openWith(final File f,final Context c) {
         }
         a.customView(v, true);
         a.positiveText(R.string.copy_path);
-        a.negativeText(getString(c.getActivity(), R.string.md5_2));
+        a.negativeText(c.getResources().getString( R.string.md5_2));
         a.positiveColor(Color.parseColor(fabskin));
         a.negativeColor(Color.parseColor(fabskin));
         a.neutralText(R.string.cancel);
@@ -467,7 +654,7 @@ public void openWith(final File f,final Context c) {
         a.callback(new MaterialDialog.ButtonCallback() {
             @Override
             public void onPositive(MaterialDialog materialDialog) {
-                c.MAIN_ACTIVITY.copyToClipboard(c.getActivity(), f);
+                c.MAIN_ACTIVITY.copyToClipboard(c.getActivity(), hFile.getPath());
                 Toast.makeText(c.getActivity(), c.getResources().getString(R.string.pathcopied), Toast.LENGTH_SHORT).show();
             }
 
@@ -478,13 +665,12 @@ public void openWith(final File f,final Context c) {
         MaterialDialog materialDialog=a.build();
         materialDialog.show();
         new GenerateMD5Task(materialDialog, hFile, name, parent, size, items, date,c.getActivity
-                (),v).execute(f);
+                (),v).execute(hFile.getPath());
     }
-    public long[] getSpaces(String s){
-        HFile hFile=new HFile(s);
+    public static long[] getSpaces(HFile hFile){
         if(!hFile.isSmb() && hFile.isDirectory()){
             try {
-                File file=new File(s);
+                File file=new File(hFile.getPath());
                 long[] ints=new long[]{file.getTotalSpace(), file.getFreeSpace(),folderSize
                         (new File(hFile.getPath()))};
                 return ints;
@@ -494,15 +680,22 @@ public void openWith(final File f,final Context c) {
         }
         return new long[]{-1,-1,-1};
     }
-    public void showProps(final File f, final Activity c,int theme1) {
-        String date = getdate(f);
-        String items =  getString(c,R.string.calculating), size = getString(c,R.string.calculating), name, parent;
+    public void showProps(final HFile f, final Activity c,int theme1) {
+        String date = null;
+        try {
+            date = getdate(f.lastModified());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (SmbException e) {
+            e.printStackTrace();
+        }
+        String items =  c.getResources().getString(R.string.calculating), size = c.getResources().getString(R.string.calculating), name, parent;
         name =  f.getName();
-        parent = f.getParent();
+        parent = f.getReadablePath(f.getParent());
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(c);
-        String fabskin = PreferenceUtils.getFabColor(sp.getInt("fab_skin_color_position", 1));
+        String fabskin = PreferenceUtils.getAccentString(sp);
         MaterialDialog.Builder a = new MaterialDialog.Builder(c);
-        a.title(getString(c, R.string.properties));
+        a.title(c.getResources().getString(R.string.properties));
         if(theme1==1)
             a.theme(Theme.DARK);
 
@@ -510,7 +703,7 @@ public void openWith(final File f,final Context c) {
         v.findViewById(R.id.appX).setVisibility(View.GONE);
         a.customView(v, true);
         a.positiveText(R.string.copy_path);
-        a.negativeText(getString(c, R.string.md5_2));
+        a.negativeText(c.getResources().getString(R.string.md5_2));
         a.positiveColor(Color.parseColor(fabskin));
         a.negativeColor(Color.parseColor(fabskin));
         a.neutralText(R.string.cancel);
@@ -528,10 +721,10 @@ public void openWith(final File f,final Context c) {
         });
         MaterialDialog materialDialog=a.build();
         materialDialog.show();
-        new GenerateMD5Task(materialDialog, new HFile(f.getPath()), name, parent, size, items, date,c,v).execute(f.getPath());
+        new GenerateMD5Task(materialDialog, (f), name, parent, size, items, date,c,v).execute(f.getPath());
     }
 
-    public boolean copyToClipboard(Context context, String text) {
+    public static boolean copyToClipboard(Context context, String text) {
         try {
             android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context
                     .getSystemService(context.CLIPBOARD_SERVICE);
@@ -576,18 +769,7 @@ public void openWith(final File f,final Context c) {
         return b;
     }
 
-    public boolean rename(File f, String name,boolean root) {
-        String newname = f.getParent() + "/" + name;
-        if(f.getParentFile().canWrite()){
-            return f.renameTo(new File(newname));}
-        else if(root) {
-            RootTools.remount(f.getPath(),"rw");
-            RootHelper.runAndWait("mv " + f.getPath() + " " + newname, true);
-            RootTools.remount(f.getPath(),"ro");
-        }return true;
-    }
-
-    public boolean canListFiles(File f) {
+    public static boolean canListFiles(File f) {
         try {
             if (f.canRead() && f.isDirectory())
                 return true;
@@ -642,21 +824,48 @@ public void openWith(final File f,final Context c) {
             try {
                 openunknown(f, m, false);
             } catch (Exception e) {
-                Toast.makeText(m, getString(m, R.string.noappfound),Toast.LENGTH_LONG).show();
+                Toast.makeText(m, m.getResources().getString(R.string.noappfound),Toast.LENGTH_LONG).show();
                 openWith(f, m);
             }
         }
     }
+public static void showSMBHelpDialog(Context m,String acc){
 
+    MaterialDialog.Builder b=new MaterialDialog.Builder(m);
+    b.content(Html.fromHtml("<html>\n" +
+            "<body>\n" +
+            "<center>\n" +
+            "<h1>How to access shared windows folder on android (smb)</h1>\n" +
+            "</center>\n" +
+            "<ol>\n" +
+            "<li>\n" +
+            "<b>Enable File Sharing</b>\n" +
+            "<br>Open the Control Panel, click Choose homegroup and sharing options under Network and Internet, and click Change advanced sharing settings. Enable the file and printer sharing feature.\n" +
+            "</li><br><li><b>Additional File Sharing settings</b><br>You may also want to configure the other advanced sharing settings here. \n" +
+            "For example, you could enable access to your files without a password if you trust all the devices on your local network.Once file and printer sharing is enabled, you can open File Explorer or Windows Explorer, right-click a folder you want to share, and select Properties. \n" +
+            "Click the Share button and make the folder available on the network.\n" +
+            "</li><li><br><b>Make sure both devices are on same Wifi</b><br> \n" +
+            "This feature makes files available on the local network, so your PC and mobile devices have to be on the same local network. You can’t access a shared Windows folder over the Internet or when your smartphone is connected to its mobile data — it has to be connected to Wi-Fi.</li><li>\n" +
+            "<br><b>Find IP Address</b>\n" +
+            "<br>Open Command Prompt. Type 'ipconfig' and press Enter. Look for Default Gateway under your network adapter for your router's IP address. Look for \\\"IPv4 Address\\\" under the same adapter section to find your computer's IP address.</li><li><br>\n" +
+            "<b>Enter details in smb dialog box</b>\n" +
+            "<br>\n" +
+            "</ol>\n" +
+            "</body>\n" +
+            "</html>"));
+    b.positiveText(R.string.doit);
+    b.positiveColor(Color.parseColor(acc));
+    b.build().show();
+}
 public void showPackageDialog(final File f,final MainActivity m){
     MaterialDialog.Builder mat=new MaterialDialog.Builder(m);
     mat.title(R.string.packageinstaller).content(R.string.pitext)
             .positiveText(R.string.install)
             .negativeText(R.string.view)
             .neutralText(R.string.cancel)
-            .positiveColor(Color.parseColor(m.fabskin))
-            .negativeColor(Color.parseColor(m.fabskin))
-            .neutralColor(Color.parseColor(m.fabskin))
+            .positiveColor(Color.parseColor(BaseActivity.accentSkin))
+            .negativeColor(Color.parseColor(BaseActivity.accentSkin))
+            .neutralColor(Color.parseColor(BaseActivity.accentSkin))
             .callback(new MaterialDialog.ButtonCallback() {
                 @Override
                 public void onPositive(MaterialDialog materialDialog) {
@@ -680,22 +889,22 @@ public void showPackageDialog(final File f,final MainActivity m){
                 .positiveText(R.string.extract)
                 .negativeText(R.string.view)
                 .neutralText(R.string.cancel)
-                .positiveColor(Color.parseColor(m.fabskin))
-                .negativeColor(Color.parseColor(m.fabskin))
-                .neutralColor(Color.parseColor(m.fabskin))
+                .positiveColor(Color.parseColor(BaseActivity.accentSkin))
+                .negativeColor(Color.parseColor(BaseActivity.accentSkin))
+                .neutralColor(Color.parseColor(BaseActivity.accentSkin))
                 .callback(new MaterialDialog.ButtonCallback() {
                     @Override
                     public void onPositive(MaterialDialog materialDialog) {
-                        m.extractFile(f);
+                        m. mainActivityHelper.extractFile(f);
                     }
 
                     @Override
                     public void onNegative(MaterialDialog materialDialog) {
                         //m.addZipViewTab(f.getPath());
                         if (f.getName().toLowerCase().endsWith(".rar"))
-                            m.openRar(f.getPath());
+                            m.openRar(Uri.fromFile(f).toString());
                         else
-                            m.openZip(f.getPath());
+                            m.openZip(Uri.fromFile(f).toString());
                     }
                 });
         if (m.theme1 == 1) mat.theme(Theme.DARK);
@@ -707,56 +916,49 @@ public void showPackageDialog(final File f,final MainActivity m){
 
     }
 
-    public Layoutelements newElement(Drawable i, String d,String permissions,String symlink,String size,long longSize,boolean directorybool,boolean b,String date) {
+    public Layoutelements newElement(BitmapDrawable i, String d, String permissions, String symlink, String size, long longSize, boolean directorybool, boolean b, String date) {
         Layoutelements item = new Layoutelements(i, new File(d).getName(), d,permissions,symlink,size,longSize,b,date,directorybool);
         return item;
     }
 
-    public ArrayList<File> toFileArray(ArrayList<String> a) {
-        ArrayList<File> b = new ArrayList<File>();
+    public ArrayList<HFile> toHFileArray(ArrayList<String> a) {
+        ArrayList<HFile> b = new ArrayList<>();
         for (int i = 0; i < a.size(); i++) {
-            b.add(new File(a.get(i)));
+            HFile hFile=new HFile(HFile.UNKNOWN,a.get(i));
+            hFile.generateMode(null);
+            b.add(hFile);
         }
         return b;
     }
 
-    public ArrayList<String> toStringArray(ArrayList<File> a) {
-        ArrayList<String> b = new ArrayList<String>();
-        for (int i = 0; i < a.size(); i++) {
-            b.add(a.get(i).getPath());
-        }
-        return b;
-    }
-
-    public void showNameDialog(final MainActivity m, final ArrayList<String> b, final String current) {
+    public void showCompressDialog(final MainActivity m, final ArrayList<BaseFile> b, final String current) {
         MaterialDialog.Builder a = new MaterialDialog.Builder(m);
-        a.input(getString(m, R.string.enterzipname), new File(current).getName() + ".zip", false, new
+        a.input(m.getResources().getString(R.string.enterzipname), ".zip", false, new
                 MaterialDialog.InputCallback() {
                     @Override
                     public void onInput(MaterialDialog materialDialog, CharSequence charSequence) {
 
                     }
                 });
-        a.widgetColor(Color.parseColor(m.fabskin));
+        a.widgetColor(Color.parseColor(BaseActivity.accentSkin));
         if(m.theme1==1)
             a.theme(Theme.DARK);
-        a.title(getString(m, R.string.enterzipname));
+        a.title(m.getResources().getString(R.string.enterzipname));
         a.positiveText(R.string.create);
-        a.positiveColor(Color.parseColor(m.fabskin));
-        a.callback(new MaterialDialog.ButtonCallback() {
+        a.positiveColor(Color.parseColor(BaseActivity.accentSkin));
+        a.onPositive(new MaterialDialog.SingleButtonCallback() {
             @Override
-            public void onPositive(MaterialDialog materialDialog) {
-                String name = current + "/" + materialDialog.getInputEditText().getText().toString();
-                m.compressFiles(new File(name), b);
-            }
-
-            @Override
-            public void onNegative(MaterialDialog materialDialog) {
-
+            public void onClick(MaterialDialog materialDialog, DialogAction dialogAction) {
+                if (materialDialog.getInputEditText().getText().toString().equals(".zip"))
+                    Toast.makeText(m, "File should have a name", Toast.LENGTH_SHORT).show();
+                else {
+                    String name = current + "/" + materialDialog.getInputEditText().getText().toString();
+                    m.mainActivityHelper.compressFiles(new File(name), b);
+                }
             }
         });
-        a.negativeText(getString(m, R.string.cancel));
-        a.negativeColor(Color.parseColor(m.fabskin));
+        a.negativeText(m.getResources().getString(R.string.cancel));
+        a.negativeColor(Color.parseColor(BaseActivity.accentSkin));
         a.build().show();
     }
 
@@ -765,20 +967,20 @@ public void showPackageDialog(final File f,final MainActivity m){
         int current = Integer.parseInt(m.Sp.getString("sortby", "0"));
         MaterialDialog.Builder a = new MaterialDialog.Builder(m.getActivity());
         if(m.theme1==1)a.theme(Theme.DARK);
-        a.items(sort).itemsCallbackSingleChoice(current>3?current-4:current, new MaterialDialog.ListCallbackSingleChoice() {
+        a.items(sort).itemsCallbackSingleChoice(current > 3 ? current - 4 : current, new MaterialDialog.ListCallbackSingleChoice() {
             @Override
             public boolean onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
 
                 return true;
             }
         });
-        a.positiveText(R.string.ascending).positiveColor(Color.parseColor(m.fabSkin));
-        a.negativeText(R.string.descending).negativeColor(Color.parseColor(m.fabSkin));
+        a.positiveText(R.string.ascending).positiveColor(Color.parseColor(BaseActivity.accentSkin));
+        a.negativeText(R.string.descending).negativeColor(Color.parseColor(BaseActivity.accentSkin));
         a.callback(new MaterialDialog.ButtonCallback() {
             @Override
             public void onPositive(MaterialDialog dialog) {
                 super.onPositive(dialog);
-                int which=dialog.getSelectedIndex();
+                int which = dialog.getSelectedIndex();
                 m.Sp.edit().putString("sortby", "" + which).commit();
                 m.getSortModes();
                 m.updateList();
@@ -789,7 +991,7 @@ public void showPackageDialog(final File f,final MainActivity m){
             @Override
             public void onNegative(MaterialDialog dialog) {
                 super.onNegative(dialog);
-                int which=4+dialog.getSelectedIndex();
+                int which = 4 + dialog.getSelectedIndex();
                 m.Sp.edit().putString("sortby", "" + which).commit();
                 m.getSortModes();
                 m.updateList();
@@ -805,20 +1007,20 @@ public void showPackageDialog(final File f,final MainActivity m){
         int current = Integer.parseInt(m.Sp.getString("sortbyApps", "0"));
         MaterialDialog.Builder a = new MaterialDialog.Builder(m.getActivity());
         if(m.theme1==1)a.theme(Theme.DARK);
-        a.items(sort).itemsCallbackSingleChoice(current>2?current-3:current, new MaterialDialog.ListCallbackSingleChoice() {
+        a.items(sort).itemsCallbackSingleChoice(current > 2 ? current - 3 : current, new MaterialDialog.ListCallbackSingleChoice() {
             @Override
             public boolean onSelection(MaterialDialog dialog, View view, int which, CharSequence text) {
 
                 return true;
             }
         });
-        a.positiveText(R.string.ascending).positiveColor(Color.parseColor(m.fabSkin));
-        a.negativeText(R.string.descending).negativeColor(Color.parseColor(m.fabSkin));
+        a.positiveText(R.string.ascending).positiveColor(Color.parseColor(BaseActivity.accentSkin));
+        a.negativeText(R.string.descending).negativeColor(Color.parseColor(BaseActivity.accentSkin));
         a.callback(new MaterialDialog.ButtonCallback() {
             @Override
             public void onPositive(MaterialDialog dialog) {
                 super.onPositive(dialog);
-                int which=dialog.getSelectedIndex();
+                int which = dialog.getSelectedIndex();
                 m.Sp.edit().putString("sortbyApps", "" + which).commit();
                 m.getSortModes();
                 m.loadlist(false);
@@ -828,7 +1030,7 @@ public void showPackageDialog(final File f,final MainActivity m){
             @Override
             public void onNegative(MaterialDialog dialog) {
                 super.onNegative(dialog);
-                int which=dialog.getSelectedIndex()+3;
+                int which = dialog.getSelectedIndex() + 3;
                 m.Sp.edit().putString("sortbyApps", "" + which).commit();
                 m.getSortModes();
                 m.loadlist(false);
@@ -840,25 +1042,23 @@ public void showPackageDialog(final File f,final MainActivity m){
     }
 
     public void showHistoryDialog(final Main m) {
-        final ArrayList<String> paths = m.MAIN_ACTIVITY.history.readTable();
         final MaterialDialog.Builder a = new MaterialDialog.Builder(m.getActivity());
         a.positiveText(R.string.cancel);
-        a.positiveColor(Color.parseColor(m.fabSkin));
+        a.positiveColor(Color.parseColor(BaseActivity.accentSkin));
         a.negativeText(R.string.clear);
-        a.negativeColor(Color.parseColor(m.fabSkin));
+        a.negativeColor(Color.parseColor(BaseActivity.accentSkin));
         a.title(R.string.history);
-        a.callback(new MaterialDialog.ButtonCallback() {
+        a.onNegative(new MaterialDialog.SingleButtonCallback() {
             @Override
-            public void onNegative(MaterialDialog dialog) {
-                super.onNegative(dialog);
-                m.MAIN_ACTIVITY.history.clear();
+            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                 DataUtils.clearHistory();
             }
         });
         if(m.theme1==1)
             a.theme(Theme.DARK);
 
         a.autoDismiss(true);
-        HiddenAdapter adapter = new HiddenAdapter(m.getActivity(),m, R.layout.bookmarkrow, toFileArray(paths),m.MAIN_ACTIVITY.hidden,null,true);
+        HiddenAdapter adapter = new HiddenAdapter(m.getActivity(),m, this, R.layout.bookmarkrow, toHFileArray(DataUtils.history),null,true);
         a.adapter(adapter, new MaterialDialog.ListCallback() {
             @Override
             public void onSelection(MaterialDialog materialDialog, View view, int i, CharSequence charSequence) {
@@ -873,27 +1073,29 @@ public void showPackageDialog(final File f,final MainActivity m){
     }
 
     public void showHiddenDialog(final Main m) {
-          final ArrayList<String> paths = m.MAIN_ACTIVITY.hidden.readTable();
-            final MaterialDialog.Builder a = new MaterialDialog.Builder(m.getActivity());
+        final MaterialDialog.Builder a = new MaterialDialog.Builder(m.getActivity());
         a.positiveText(R.string.cancel);
-        a.positiveColor(Color.parseColor(m.fabSkin));
+        a.positiveColor(Color.parseColor(BaseActivity.accentSkin));
         a.title(R.string.hiddenfiles);
         if(m.theme1==1)
             a.theme(Theme.DARK);
         a.autoDismiss(true);
-        HiddenAdapter adapter = new HiddenAdapter(m.getActivity(),m, R.layout.bookmarkrow, toFileArray(paths),m.MAIN_ACTIVITY.hidden,null,false);
+        HiddenAdapter adapter = new HiddenAdapter(m.getActivity(),m, this, R.layout.bookmarkrow, toHFileArray(DataUtils.getHiddenfiles()),null,false);
         a.adapter(adapter, new MaterialDialog.ListCallback() {
             @Override
             public void onSelection(MaterialDialog materialDialog, View view, int i, CharSequence charSequence) {
 
             }
         });
+        a.dividerColor(Color.GRAY);
         MaterialDialog x= a.build();
         adapter.updateDialog(x);
         x.show();
 
     }
-
+    public boolean isAtleastKitkat(){
+        return Build.VERSION.SDK_INT>=Build.VERSION_CODES.KITKAT;
+    }
     public void setPermissionsDialog(final View v,View but,final HFile file, final String f, final Main main) {
             final CheckBox readown=(CheckBox) v.findViewById(R.id.creadown);
             final CheckBox readgroup=(CheckBox) v.findViewById(R.id.creadgroup);
@@ -946,7 +1148,7 @@ public void showPackageDialog(final File f,final MainActivity m){
 
                     String command = "chmod " + finalValue + " " + file.getPath();
                     if (file.isDirectory())
-                        command = "chmod -R " + finalValue + " " + file.getPath();
+                        command = "chmod -R " + finalValue + " \"" + file.getPath()+"\"";
                     Command com = new Command(1, command) {
                         @Override
                         public void commandOutput(int i, String s) {
@@ -976,18 +1178,20 @@ public void showPackageDialog(final File f,final MainActivity m){
             });
     }
 
-    public String[] parseName(String line) {
+    public static BaseFile parseName(String line) {
         boolean linked = false;
         String name = "", link = "", size = "-1", date = "";
         String[] array = line.split(" ");
+        if(array.length<6)return null;
         for (int i = 0; i < array.length; i++) {
-            if (array[i].contains("->")) {
+            if (array[i].contains("->") && array[0].startsWith("l")) {
                 linked = true;
             }
         }
         int p = getColonPosition(array);
+        if(p!=-1){
         date = array[p - 1] + " | " + array[p];
-        size = array[p - 2];
+        size = array[p - 2];}
         if (!linked) {
             for (int i = p + 1; i < array.length; i++) {
                 name = name + " " + array[i];
@@ -1003,29 +1207,34 @@ public void showPackageDialog(final File f,final MainActivity m){
                 link = link + " " + array[i];
             }
         }
-        String size1 = size;
-        if (size.equals("")) {
-            size = "-1";
-            size1 = "";
+        long Size = (size==null || size.trim().length()==0)?-1:Long.parseLong(size);
+        if(date.trim().length()>0) {
+            ParsePosition pos = new ParsePosition(0);
+            SimpleDateFormat simpledateformat = new SimpleDateFormat("yyyy-MM-dd | HH:mm");
+            Date stringDate = simpledateformat.parse(date, pos);
+            BaseFile baseFile=new BaseFile(name,array[0],stringDate.getTime(),Size,true);
+            baseFile.setLink(link);
+            return baseFile;
+        }else {
+            BaseFile baseFile= new BaseFile(name,array[0],new File("/").lastModified(),Size,true);
+            baseFile.setLink(link);
+            return baseFile;
         }
-        ParsePosition pos = new ParsePosition(0);
-        SimpleDateFormat simpledateformat = new SimpleDateFormat("yyyy-MM-dd | HH:mm");
-        Date stringDate = simpledateformat.parse(date, pos);
-        return new String[]{name, link, array[0], size, stringDate.getTime() + "", size1};
+
     }
 
-    public int getLinkPosition(String[] array){
+    private static int getLinkPosition(String[] array){
         for(int i=0;i<array.length;i++){
             if(array[i].contains("->"))return i;
         }
         return  0;
     }
 
-public int getColonPosition(String[] array){
+    private static int getColonPosition(String[] array){
         for(int i=0;i<array.length;i++){
             if(array[i].contains(":"))return i;
         }
-        return  0;
+        return  -1;
     }
 
     public ArrayList<Boolean[]> parse(String permLine) {

@@ -15,9 +15,13 @@ import com.amaze.filemanager.R;
 import com.amaze.filemanager.activities.MainActivity;
 import com.amaze.filemanager.fragments.Main;
 import com.amaze.filemanager.services.DeleteTask;
+import com.amaze.filemanager.filesystem.BaseFile;
+import com.amaze.filemanager.filesystem.HFile;
+import com.amaze.filemanager.utils.DataUtils;
 import com.amaze.filemanager.utils.Futils;
 import com.amaze.filemanager.utils.HistoryManager;
-import com.amaze.filemanager.utils.Shortcuts;
+import com.amaze.filemanager.utils.UtilitiesProviderInterface;
+
 
 import java.io.File;
 import java.util.ArrayList;
@@ -26,21 +30,22 @@ import java.util.ArrayList;
 /**
  * Created by Arpit on 16-11-2014.
  */
-public class HiddenAdapter extends ArrayAdapter<File> {
+public class HiddenAdapter extends ArrayAdapter<HFile> {
+    private Futils utils;
+
     /*Shortcuts s;*/
     Main context;Context c;
-    public ArrayList<File> items;
-    HistoryManager hidden;
+    public ArrayList<HFile> items;
     MaterialDialog materialDialog;
     boolean hide;
     ///	public HashMap<Integer, Boolean> myChecked = new HashMap<Integer, Boolean>();
 
-    public HiddenAdapter(Context c,Main context, int resourceId, ArrayList<File> items,HistoryManager hidden,MaterialDialog materialDialog,boolean hide) {
+    public HiddenAdapter(Context c,Main context, Futils utils,  int resourceId, ArrayList<HFile> items,MaterialDialog materialDialog,boolean hide) {
         super(c, resourceId, items);
+        this.utils = utils;
         this.c=c;
         this.context = context;
         this.items = items;
-        this.hidden=hidden;
         this.hide=hide;
         this.materialDialog=materialDialog;
     /*    s = new Shortcuts(c,"shortcut.xml");
@@ -55,7 +60,7 @@ public class HiddenAdapter extends ArrayAdapter<File> {
     }
 
     public View getView(int position, View convertView, ViewGroup parent) {
-        File f = items.get(position);
+        final HFile f = items.get(position);
         //final Layoutelements rowItem = getItem(position);
 
         View view;
@@ -77,21 +82,23 @@ public class HiddenAdapter extends ArrayAdapter<File> {
         }
         final ViewHolder holder = (ViewHolder) view.getTag();
         holder.txtTitle.setText(f.getName());
-        holder.txtDesc.setText(f.getPath());
+        String a=f.getReadablePath(f.getPath());
+        holder.txtDesc.setText(a);
         if(hide)
             holder.image.setVisibility(View.GONE);
-        holder.image.setOnClickListener(new View.OnClickListener() {
+            holder.image.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-            hidden.removePath(items.get(p).getPath());
-            if(items.get(p).isDirectory())
+            if(!f.isSmb() && f.isDirectory())
             {
-                ArrayList<File> a=new ArrayList<File>();
-                a.add(new File(items.get(p).getPath()+"/.nomedia"));
-                new DeleteTask(context.getActivity().getContentResolver(),c).execute(new Futils().toStringArray(a));
+                ArrayList<BaseFile> a=new ArrayList<BaseFile>();
+                BaseFile baseFile=new BaseFile(items.get(p).getPath()+"/.nomedia");
+                baseFile.setMode(HFile.LOCAL_MODE);
+                a.add(baseFile);
+                new DeleteTask(context.getActivity().getContentResolver(),c).execute((a));
             }
+                DataUtils.removeHiddenFile(items.get(p).getPath());
                 items.remove(items.get(p));
-                context.updatehiddenfiles();
                 notifyDataSetChanged();
             }
         });
@@ -99,13 +106,28 @@ public class HiddenAdapter extends ArrayAdapter<File> {
             @Override
             public void onClick(View view) {
                 materialDialog.dismiss();
-                final File f = (items.get(p));
-                if (f.isDirectory()) {
-
-                    context.loadlist(f.getPath(),false,false);
-                } else {
-                   context.utils. openFile(f, (MainActivity) context.getActivity());
-                }
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (f.isDirectory()) {
+                            context.getActivity().runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    context.loadlist(f.getPath(), false, -1);
+                                }
+                            });
+                        } else {
+                            if(!f.isSmb()){
+                                context.getActivity().runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        utils.openFile(new File(f.getPath()), (MainActivity) context.getActivity());
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }).start();
             }
         });
         return view;
@@ -113,4 +135,6 @@ public class HiddenAdapter extends ArrayAdapter<File> {
     public void updateDialog(MaterialDialog dialog){
         materialDialog=dialog;
     }
+
+
 }

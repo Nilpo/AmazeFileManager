@@ -21,20 +21,13 @@ package com.amaze.filemanager.activities;
 
 import android.app.Activity;
 import android.app.ActivityManager;
-import android.content.SharedPreferences;
-import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.app.ActionBarActivity;
-import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -48,9 +41,10 @@ import android.widget.FrameLayout;
 import android.widget.ListView;
 
 import com.amaze.filemanager.R;
+import com.amaze.filemanager.filesystem.RootHelper;
 import com.amaze.filemanager.fragments.DbViewerFragment;
 import com.amaze.filemanager.utils.PreferenceUtils;
-import com.amaze.filemanager.utils.RootHelper;
+import com.amaze.filemanager.utils.color.ColorUsage;
 import com.readystatesoftware.systembartint.SystemBarTintManager;
 import com.stericson.RootTools.RootTools;
 
@@ -60,29 +54,25 @@ import java.util.ArrayList;
 /**
  * Created by Vishal on 02-02-2015.
  */
-public class DbViewer extends AppCompatActivity {
+public class DbViewer extends BaseActivity {
 
-    private SharedPreferences Sp;
-    private String skin, path;
-    private boolean rootMode;
+    private String path;
     private ListView listView;
     private ArrayList<String> arrayList;
     private ArrayAdapter arrayAdapter;
     private Cursor c;
+
+    // the copy of db file which is to be opened, in the app cache
     private File pathFile;
     boolean delete=false;
     public Toolbar toolbar;
     public SQLiteDatabase sqLiteDatabase;
-    public int theme, theme1, skinStatusBar;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        this.checkStorage=false;
         super.onCreate(savedInstanceState);
 
-        Sp = PreferenceManager.getDefaultSharedPreferences(this);
-        theme = Integer.parseInt(Sp.getString("theme", "0"));
-
-        theme1 = theme==2 ? PreferenceUtils.hourOfDay() : theme;
 
         if (theme1 == 1) {
             setTheme(R.style.appCompatDark);
@@ -91,25 +81,22 @@ public class DbViewer extends AppCompatActivity {
         setContentView(R.layout.activity_db_viewer);
         toolbar = (android.support.v7.widget.Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        skin =PreferenceUtils.getSkinColor(Sp.getInt("skin_color_position", 4));
         if (Build.VERSION.SDK_INT>=21) {
             ActivityManager.TaskDescription taskDescription = new ActivityManager.TaskDescription
                     ("Amaze", ((BitmapDrawable) ContextCompat.getDrawable(this,R.mipmap
                             .ic_launcher))
-                    .getBitmap(),
-                            Color.parseColor(skin));
+                            .getBitmap(),
+                            getColorPreference().getColor(ColorUsage.getPrimary(MainActivity.currentTab)));
             ((Activity)this).setTaskDescription(taskDescription);
         }
-        skinStatusBar = PreferenceUtils.getStatusColor(skin);
-        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor(skin)));
+        getSupportActionBar()
+                .setBackgroundDrawable(getColorPreference().getDrawable(ColorUsage.getPrimary(MainActivity.currentTab)));
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        rootMode = PreferenceManager.getDefaultSharedPreferences(this)
-                .getBoolean("rootmode", false);
         int sdk= Build.VERSION.SDK_INT;
         if(sdk==20 || sdk==19) {
             SystemBarTintManager tintManager = new SystemBarTintManager(this);
             tintManager.setStatusBarTintEnabled(true);
-            tintManager.setStatusBarTintColor(Color.parseColor(skin));
+            tintManager.setStatusBarTintColor(getColorPreference().getColor(ColorUsage.getPrimary(MainActivity.currentTab)));
             FrameLayout.MarginLayoutParams p = (ViewGroup.MarginLayoutParams) findViewById(R.id.parentdb).getLayoutParams();
             SystemBarTintManager.SystemBarConfig config = tintManager.getConfig();
             p.setMargins(0, config.getStatusBarHeight(), 0, 0);
@@ -118,9 +105,9 @@ public class DbViewer extends AppCompatActivity {
             Window window =getWindow();
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
-            window.setStatusBarColor((PreferenceUtils.getStatusColor(skin)));
+            window.setStatusBarColor(PreferenceUtils.getStatusColor(getColorPreference().getColorAsString(ColorUsage.getPrimary(MainActivity.currentTab))));
             if(colourednavigation)
-                window.setNavigationBarColor((PreferenceUtils.getStatusColor(skin)));
+                window.setNavigationBarColor(PreferenceUtils.getStatusColor(getColorPreference().getColorAsString(ColorUsage.getPrimary(MainActivity.currentTab))));
 
         }
 
@@ -159,17 +146,20 @@ public class DbViewer extends AppCompatActivity {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                if (!file.canRead() && rootMode) {
-                    File file1=getExternalCacheDir();
-                    if(file1!=null)file1=getCacheDir();
-                    RootTools.remount(file.getParent(), "RW");
+
+                File file1=getExternalCacheDir();
+                if(file1==null)file1=getCacheDir();
+
+                if (!file.canRead() && BaseActivity.rootMode) {
                     RootTools.copyFile(pathFile.getPath(),new File(file1.getPath(),file.getName()).getPath(), true,false);
                     pathFile=new File(file1.getPath(),file.getName());
-                    RootHelper.runAndWait("chmod 777 "+pathFile.getPath(),true);
+                    RootHelper.runAndWait("chmod 777 " + pathFile.getPath(), true);
+                    RootTools.remount(pathFile.getPath(), "RW");
                     delete=true;
                 }
                 try {
-                    sqLiteDatabase = SQLiteDatabase.openDatabase(pathFile.getPath(), null, SQLiteDatabase.OPEN_READONLY);
+                    sqLiteDatabase = SQLiteDatabase.openDatabase(pathFile.getPath(), null,
+                            SQLiteDatabase.OPEN_READONLY);
 
                     c = sqLiteDatabase.rawQuery(
                             "SELECT name FROM sqlite_master WHERE type='table'", null);
@@ -193,9 +183,9 @@ public class DbViewer extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-       if(sqLiteDatabase!=null) sqLiteDatabase.close();
+        if(sqLiteDatabase!=null) sqLiteDatabase.close();
         if(c!=null) c.close();
-        if(true)pathFile.delete();
+        if(delete)pathFile.delete();
     }
 
     @Override

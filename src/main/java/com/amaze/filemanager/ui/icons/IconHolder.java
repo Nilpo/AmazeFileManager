@@ -143,7 +143,7 @@ public class IconHolder {
      * @param defaultIcon Drawable to be used in case no specific one could be found
      * @return Drawable The drawable reference
      */
-    public void loadDrawable(ImageView iconView, String fso, Drawable defaultIcon) {
+    public void loadDrawable(ImageView iconView, final String fso, Drawable defaultIcon) {
         if (!mUseThumbs) {
             return;
         }
@@ -154,17 +154,22 @@ public class IconHolder {
             iconView.setImageBitmap(this.mAppIcons.get(filePath));
             return;
         }
-
         mRequests.put(iconView, fso);
-        mHandler.removeMessages(MSG_DESTROY);
-        if (mWorkerThread == null) {
-            mWorkerThread = new HandlerThread("IconHolderLoader");
-            mWorkerThread.start();
-            mWorkerHandler = new WorkerHandler(mWorkerThread.getLooper());
-        }
-        Message msg = mWorkerHandler.obtainMessage(MSG_LOAD, fso);
-        msg.sendToTarget();
-    }
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                mHandler.removeMessages(MSG_DESTROY);
+                if (mWorkerThread == null || mWorkerHandler==null) {
+                    mWorkerThread = new HandlerThread("IconHolderLoader");
+                    mWorkerThread.start();
+                    mWorkerHandler = new WorkerHandler(mWorkerThread.getLooper());
+                }
+                Message msg = mWorkerHandler.obtainMessage(MSG_LOAD, fso);
+                msg.sendToTarget();
+
+            }
+        }).start();    }
 
     /**
      * Cancel loading of a drawable for a certain ImageView.
@@ -248,7 +253,6 @@ public class IconHolder {
         return bitsat;
         }
 
-    Futils futils=new Futils();
 		public Bitmap loadImage(String path) throws OutOfMemoryError{
 			Bitmap bitsat;
 
@@ -258,7 +262,7 @@ public class IconHolder {
 				options.inJustDecodeBounds = true;
 				Bitmap b = BitmapFactory.decodeFile(path, options);
 				
-				options.inSampleSize =futils .calculateInSampleSize(options, px, px);
+				options.inSampleSize = Futils.calculateInSampleSize(options, px, px);
 
 				// Decode bitmap with inSampleSize set
 				options.inJustDecodeBounds = false;

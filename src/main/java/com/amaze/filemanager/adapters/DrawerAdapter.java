@@ -19,13 +19,9 @@
 
 package com.amaze.filemanager.adapters;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.res.TypedArray;
 import android.graphics.Color;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
 import android.graphics.drawable.Drawable;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
@@ -36,18 +32,27 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.amaze.filemanager.R;
+import com.amaze.filemanager.activities.BaseActivity;
 import com.amaze.filemanager.activities.MainActivity;
+import com.amaze.filemanager.filesystem.HFile;
+import com.amaze.filemanager.filesystem.Operations;
+import com.amaze.filemanager.filesystem.RootHelper;
 import com.amaze.filemanager.ui.drawer.EntryItem;
 import com.amaze.filemanager.ui.drawer.Item;
 import com.amaze.filemanager.ui.icons.IconUtils;
+import com.amaze.filemanager.utils.DataUtils;
+import com.amaze.filemanager.utils.UtilitiesProviderInterface;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public class DrawerAdapter extends ArrayAdapter<Item> {
     private final Context context;
+    private UtilitiesProviderInterface utilsProvider;
     private final ArrayList<Item> values;
     private RelativeLayout l;
     MainActivity m;
@@ -71,8 +76,9 @@ public class DrawerAdapter extends ArrayAdapter<Item> {
     }
     LayoutInflater inflater;
     int fabskin;
-    public DrawerAdapter(Context context, ArrayList<Item> values, MainActivity m, SharedPreferences Sp) {
+    public DrawerAdapter(Context context, UtilitiesProviderInterface utilsProvider, ArrayList<Item> values, MainActivity m, SharedPreferences Sp) {
         super(context, R.layout.drawerrow, values);
+        this.utilsProvider = utilsProvider;
 
         this.context = context;
         this.values = values;
@@ -82,8 +88,8 @@ public class DrawerAdapter extends ArrayAdapter<Item> {
         }
         icons = new IconUtils(Sp, m);
         this.m = m;
-        fabskin=Color.parseColor(m.fabskin);
-        color = colors.get(m.fabskin);
+        fabskin=Color.parseColor(BaseActivity.accentSkin);
+        color = colors.get(BaseActivity.accentSkin);
         if (color == null) {
             color = colors.get("#e91e63");
         }
@@ -119,7 +125,13 @@ public class DrawerAdapter extends ArrayAdapter<Item> {
             view.setOnClickListener(new View.OnClickListener() {
 
                 public void onClick(View p1) {
-                    m.selectItem(position, false);
+                    EntryItem item = (EntryItem) getItem(position);
+
+                    if(DataUtils.containsBooks(new String[]{item.getTitle(),item.getPath()})!=-1){
+
+                        checkForPath(item.getPath());
+                    }
+                    m.selectItem(position);
                 }
                 // TODO: Implement this method
 
@@ -127,26 +139,21 @@ public class DrawerAdapter extends ArrayAdapter<Item> {
             view.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View v) {
-
+                    if(!getItem(position).isSection())
                     // not to remove the first bookmark (storage) and permanent bookmarks
-                    if (position > m.storage_count && position < values.size()-5) {
-                        String path = ((EntryItem) getItem(position)).getPath();
-                        if (!getItem(position).isSection() && path.startsWith("smb:/")) {
-                            m.createSmbDialog(path, true, null);
-                            return true;
+                    if (position > m.storage_count && position < values.size()-7) {
+                        EntryItem item=(EntryItem) getItem(position);
+                        String path = (item).getPath();
+                        if(DataUtils.containsBooks(new String[]{item.getTitle(),path})!=-1){
+                            m.renameBookmark((item).getTitle(),path);
                         }
-                        if (m.theme1 == 0)
-                            imageView.setImageResource(R.drawable.ic_action_cancel_light);
-                        else
-                            imageView.setImageResource(R.drawable.ic_action_cancel);
-                        imageView.setClickable(true);
-
-                        imageView.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                m.selectItem(position, true);
-                            }
-                        });
+                        else if (path.startsWith("smb:/")) {
+                            m.showSMBDialog(item.getTitle(),path, true);
+                        }
+                    } else if(position<m.storage_count ){
+                        String path = ((EntryItem) getItem(position)).getPath();
+                        if(!path.equals("/"))
+                            utilsProvider.getFutils().showProps(RootHelper.generateBaseFile(new File(path),true),m,m.theme1);
                     }
 
                     // return true to denote no further processing
@@ -162,7 +169,7 @@ public class DrawerAdapter extends ArrayAdapter<Item> {
                     view.setBackgroundColor(Color.parseColor("#ffeeeeee"));
                 else view.setBackgroundColor(Color.parseColor("#ff424242"));
                 imageView.setColorFilter(fabskin);
-                txtTitle.setTextColor(Color.parseColor(m.fabskin));
+                txtTitle.setTextColor(Color.parseColor(BaseActivity.accentSkin));
             } else {
                 if (m.theme1 == 0) {
                     imageView.setColorFilter(Color.parseColor("#666666"));
@@ -174,6 +181,41 @@ public class DrawerAdapter extends ArrayAdapter<Item> {
             }
 
             return view;
+        }
+    }
+
+    /**
+     * Checks whether path for exists
+     * If path is not found, empty directory is created
+     * @param path
+     */
+    void checkForPath(String path) {
+        if (!new File(path).exists()) {
+
+            Toast.makeText(getContext(), getContext().getString(R.string.bookmark_lost), Toast.LENGTH_SHORT).show();
+            Operations.mkdir(RootHelper.generateBaseFile(new File(path), true), getContext(),
+                    BaseActivity.rootMode, new Operations.ErrorCallBack() {
+                        @Override
+                        public void exists(HFile file) {
+
+                            return;
+                        }
+
+                        @Override
+                        public void launchSAF(HFile file) {
+
+                        }
+
+                        @Override
+                        public void launchSAF(HFile file, HFile file1) {
+
+                        }
+
+                        @Override
+                        public void done(HFile hFile, boolean b) {
+
+                        }
+                    });
         }
     }
 

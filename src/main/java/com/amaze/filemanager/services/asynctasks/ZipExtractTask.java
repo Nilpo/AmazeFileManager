@@ -5,12 +5,11 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.amaze.filemanager.activities.MainActivity;
-import com.amaze.filemanager.utils.Futils;
-import com.amaze.filemanager.utils.RootHelper;
+import com.amaze.filemanager.filesystem.RootHelper;
+import com.amaze.filemanager.utils.UtilitiesProviderInterface;
 import com.github.junrar.Archive;
 import com.github.junrar.exception.RarException;
 import com.github.junrar.rarfile.FileHeader;
-import com.stericson.RootTools.RootTools;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -24,6 +23,7 @@ import java.util.zip.ZipFile;
  * Created by Vishal on 11/27/2014.
  */
 public class ZipExtractTask extends AsyncTask<Void, Void, Void> {
+    private UtilitiesProviderInterface utilsProvider;
     private String outputDir;
     private ZipFile zipFile;
     private Activity zipViewer;
@@ -32,7 +32,8 @@ public class ZipExtractTask extends AsyncTask<Void, Void, Void> {
     Archive rar;
     FileHeader header;
     File output;    
-    public ZipExtractTask(ZipFile zipFile, String outputDir, Activity zipViewer, String fileName,boolean zip,ZipEntry zipEntry) {
+    public ZipExtractTask(UtilitiesProviderInterface utilsProvider, ZipFile zipFile, String outputDir, Activity zipViewer, String fileName,boolean zip,ZipEntry zipEntry) {
+        this.utilsProvider = utilsProvider;
         this.zip=zip;
         this.outputDir = outputDir;
         this.zipFile = zipFile;
@@ -40,7 +41,7 @@ public class ZipExtractTask extends AsyncTask<Void, Void, Void> {
         this.fileName = fileName;
         this.entry=zipEntry;
     }
-    public ZipExtractTask(Archive rar, String outputDir, Activity zipViewer, String fileName,boolean zip,FileHeader fileHeader) {
+    public ZipExtractTask(UtilitiesProviderInterface utilsProvider, Archive rar, String outputDir, Activity zipViewer, String fileName,boolean zip,FileHeader fileHeader) {
         this.zip=zip;
         this.outputDir = outputDir;
         this.rar = rar;
@@ -67,8 +68,7 @@ public class ZipExtractTask extends AsyncTask<Void, Void, Void> {
         String cmd = "chmod 777 " + output.getPath();
         Log.d("change permissions", cmd);
         RootHelper.runAndWait(cmd, false);
-        Futils futils = new Futils();
-        futils.openFile(output, (MainActivity) zipViewer);
+        utilsProvider.getFutils().openFile(output, (MainActivity) zipViewer);
 }
     
 private void unzipEntry1(ZipFile zipfile, ZipEntry entry, String outputDir)

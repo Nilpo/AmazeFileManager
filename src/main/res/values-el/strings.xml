@@ -57,7 +57,7 @@
     <string name="fileexist">Υπάρχει ήδη αρχείο με το ίδιο όνομα </string>
     <string name="filecreated">Το αρχείο δημιουργήθηκε</string>
     <string name="searchpath">Διαδρομή αναζήτησης</string>
-    <string name="search">ΑΝΑΖΗΤΗΣΗ</string>
+    <string name="search">Αναζητηση</string>
     <string name="enterfile">Εισάγετε όνομα αρχείου</string>
     <string name="name">Όνομα: </string>
     <string name="date">Ημερομηνία: </string>
@@ -273,6 +273,7 @@
     <string name="polish_translation_title">Πολωνέζικα</string>
     <string name="korean_translation_title">Κορεάτικα</string>
     <string name="greek_translation_title">Ελληνικά</string>
+    <string name="dutch_translation_title">Ολλανδικά</string>
     <string name="zip_viewer">Διαχειριστής Zip</string>
     <string name="unin_system_apk">Αυτή είναι μια εφαρμογή συστήματος. Η διαγραφή της μπορεί να οδηγήσει σε αστάθεια του συστήματος!\nΣυνέχεια;</string>
     <string name="warning">Προειδοποίηση</string>
@@ -334,5 +335,25 @@
     <string name="needsaccess">Απαιτείται πρόσβαση εγγραφής</string>
     <string name="needsaccesssummary">Παρακαλώ, επιλέξτε το φάκελο root του\t</string>
     <string name="needsaccesssummary1">\tγια να δώσετε άδεια πρόσβασης εγγραφής</string>
-
+    <string name="smb_con">Συνδέσεις SMB</string>
+    <string name="smb_server">Διακομιστής: Διευθ. IP ή Διευθ. IP/ΚοινόςΦάκελος</string>
+    <string name="username">Χρήστης</string>
+    <string name="password">Κωδικός</string>
+    <string name="anonymous">Ανώνυμος</string>
+    <string name="bluetooth">Bluetooth</string>
+    <string name="extstorage">Κάρτα μνήμης</string>
+    <string name="folders">Φάκελοι</string>
+    <string name="videos">Βίντεο</string>
+    <string name="apks">Apks</string>
+    <string name="documents">Έγγραφα</string>
+    <string name="images">Εικόνες</string>
+    <string name="clear">Καθαρισμός</string>
+    <string name="md5">md5: </string>
+    <string name="md5_2">Αντιγραφή md5</string>
+    <string name="total">Σύνολο: </string>
+    <string name="calculating"> υπολογισμός </string>
+    <string name="sort">Ταξινόμηση</string>
+    <string name="ascending">Αύξουσα</string>
+    <string name="descending">Φθήνουσα</string>
+    <string name="defualt">Εξ\' ορισμού</string>
 </resources>

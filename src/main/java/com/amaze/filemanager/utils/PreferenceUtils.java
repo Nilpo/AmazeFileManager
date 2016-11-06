@@ -3,19 +3,36 @@ package com.amaze.filemanager.utils;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 
-import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Random;
 
 /**
  * Created by Vishal on 12-05-2015.
  */
 public class PreferenceUtils {
+    private static int primary = -1, accent = -1, folder = -1, theme = -1, primaryTwo = -1;
+
+    public static final String KEY_PRIMARY_TWO = "skin_two";
+    public static final String KEY_PRIMARY = "skin";
+    public static final String KEY_ACCENT = "accent_skin";
+    public static final String KEY_ICON_SKIN = "icon_skin";
+    public static final String KEY_CURRENT_TAB = "current_tab";
+
+    public static final int DEFAULT_PRIMARY = 4;
+    public static final int DEFAULT_ACCENT = 1;
+    public static final int DEFAULT_ICON = -1;
+    public static final int DEFAULT_CURRENT_TAB = 1;
 
     public static int getStatusColor(String skin) {
         int c=darker(Color.parseColor(skin),0.6f);
         return c;
-    }public static int darker (int color, float factor) {
+    }
+
+    public static int getStatusColor(int skin) {
+        int c=darker(skin,0.6f);
+        return c;
+    }
+
+    public static int darker (int color, float factor) {
         int a = Color.alpha(color);
         int r = Color.red( color );
         int g = Color.green( color );
@@ -26,47 +43,66 @@ public class PreferenceUtils {
                 Math.max( (int)(g * factor), 0 ),
                 Math.max( (int)(b * factor), 0 ) );
     }
-    public static String getSkinColor(int i) {
 
-
-        return colors[i];
+    public static int getAccent(SharedPreferences Sp) {
+        if (accent == -1)
+            accent = Sp.getInt(KEY_ACCENT, DEFAULT_ACCENT);
+        return accent;
     }
 
-    public static String getFabColor(int i) {
+    /**
+     * Get primary color of second tab from preferences
+     * @return the color position in color array; from the preferences
+     */
+    public static int getPrimaryTwoColor(SharedPreferences Sp) {
+        return primaryTwo==-1 ? Sp.getInt(KEY_PRIMARY_TWO, DEFAULT_PRIMARY) : null;
+    }
 
-
-                return colors[i];
+    public static int getFolderColor(SharedPreferences Sp){
+        if(folder==DEFAULT_ICON) {
+            int icon = Sp.getInt(KEY_ICON_SKIN, DEFAULT_ICON);
+            folder = icon == DEFAULT_ICON ? Sp.getInt(KEY_ACCENT, DEFAULT_ACCENT) : icon;
         }
-    public static String random(SharedPreferences Sp) {
-
-
-        Random random = new Random();
-        int pos = random.nextInt(colors.length - 1);
-        Sp.edit().putInt("skin_color_position", pos).commit();
-        return colors[pos];
+        return folder;
     }
 
-      public final static String[] colors = new String[]{
-                "#F44336",
-                "#e91e63",
-                "#9c27b0",
-                "#673ab7",
-                "#3f51b5",
-                "#2196F3",
-                "#03A9F4",
-                "#00BCD4",
-                "#009688",
-                "#4CAF50",
-                "#8bc34a",
-                "#FFC107",
-                "#FF9800",
-                "#FF5722",
-                "#795548",
-                "#212121",
-                "#607d8b",
-                "#004d40"
-        };
-        public static final String LICENCE_TERMS = "<html><body>" +
+    @Deprecated
+    public static String getAccentString(SharedPreferences Sp) {
+        return (colors[getAccent(Sp)]);
+    }
+    public static int getTheme(SharedPreferences Sp){
+        if(theme==-1){
+            int th = Integer.parseInt(Sp.getString("theme", "0"));
+            theme = th == 2 ? PreferenceUtils.hourOfDay() : th;
+        }
+        return theme;
+    }
+    public static void reset(){
+        primary=accent=folder=theme=primaryTwo=-1;
+    }
+
+    @Deprecated
+    public final static String[] colors = new String[]{
+            "#F44336",
+            "#e91e63",
+            "#9c27b0",
+            "#673ab7",
+            "#3f51b5",
+            "#2196F3",
+            "#03A9F4",
+            "#00BCD4",
+            "#009688",
+            "#4CAF50",
+            "#8bc34a",
+            "#FFC107",
+            "#FF9800",
+            "#FF5722",
+            "#795548",
+            "#212121",
+            "#607d8b",
+            "#004d40"
+    };
+    public static final String LICENCE_TERMS = "<html><body>" +
             "<h3>Notices for files:</h3>" +
             "<ul><li>nineoldandroids-2.4.0.jar</ul></li>" +	//nineoldandroids
             "<p style = 'background-color:#eeeeee;padding-left:1em'><code>" +
